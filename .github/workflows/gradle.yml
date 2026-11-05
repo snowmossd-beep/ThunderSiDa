@@ -1,23 +1,44 @@
-name: Unzip
+name: Java CI with Gradle
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: "latest"
+  cancel-in-progress: true
 
 jobs:
-  unzip:
+  build:
     runs-on: ubuntu-latest
-
+    permissions: write-all
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract
-        run: unzip -o ThunderHack-Recode-latest.zip
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+          java-package: 'jdk'
 
-      - name: Commit extracted files
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add .
-          git commit -m "Extract zip" || echo "Nothing to commit"
-          git push
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build
+        run: ./gradlew build
+
+      - name: Remove *-sources.jar
+        run: rm ./build/libs/*-sources.jar || true
+
+      - uses: "0xDylan/action-auto-releases-n20@v1.1"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: "latest"
+          prerelease: false
+          title: "Latest Build (1.21)"
+          files: |
+            ./build/libs/*.jar
+            
